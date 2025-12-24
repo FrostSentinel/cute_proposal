@@ -1,0 +1,265 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Will You Be Mine? 💍</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500&family=Playfair+Display:wght@500;600&display=swap" rel="stylesheet">
+
+<style>
+:root{
+  --bg:#050716;
+  --card:#0b1021;
+  --text:#f5f5ff;
+  --accent:#ff4f8b;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+
+body{
+  min-height:100vh;
+  font-family:Poppins,system-ui;
+  background:radial-gradient(circle at top,#1b1230,#050716);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:20px;
+  color:var(--text);
+}
+
+.hidden{display:none!important}
+
+.card{
+  width:420px;
+  max-width:100%;
+  background:var(--card);
+  border-radius:26px;
+  padding:26px;
+  text-align:center;
+  box-shadow:0 18px 40px rgba(0,0,0,.85);
+}
+
+h1{
+  font-family:"Playfair Display";
+  margin-bottom:12px;
+}
+
+p{font-size:14px;opacity:.85}
+
+button{
+  margin-top:18px;
+  border:none;
+  padding:12px 30px;
+  border-radius:999px;
+  background:linear-gradient(135deg,#ff4f8b,#ff9acb);
+  color:#fff;
+  font-size:15px;
+  cursor:pointer;
+}
+
+#game-area{
+  width:100%;
+  height:320px;
+  background:#050716;
+  border-radius:20px;
+  margin-top:16px;
+  overflow:hidden;
+  position:relative;
+}
+
+canvas{display:block}
+
+/* 💬 Flirt text */
+#flirt{
+  position:absolute;
+  inset:0;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-size:18px;
+  font-weight:500;
+  color:#ffd1e8;
+  text-shadow:0 0 18px rgba(255,79,139,.8);
+  pointer-events:none;
+  opacity:0;
+  transition:opacity .4s ease;
+}
+
+/* 💍 Ring Overlay */
+#ring-overlay{
+  position:fixed;
+  inset:0;
+  background:rgba(5,7,22,.75);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  z-index:20;
+}
+
+.ring{
+  width:120px;
+  height:120px;
+  border:10px solid gold;
+  border-radius:50%;
+  box-shadow:0 0 30px gold,0 0 70px rgba(255,215,0,.6);
+  animation:ringPop 1.6s ease forwards;
+  position:relative;
+}
+.ring::after{
+  content:"";
+  position:absolute;
+  top:-30px;
+  left:50%;
+  transform:translateX(-50%);
+  width:28px;
+  height:28px;
+  background:radial-gradient(circle,#fff,#ffd700);
+  border-radius:50%;
+  box-shadow:0 0 30px gold;
+}
+@keyframes ringPop{
+  0%{transform:scale(0);opacity:0}
+  60%{transform:scale(1.2)}
+  100%{transform:scale(1)}
+}
+</style>
+</head>
+
+<body>
+
+<!-- PAGE 1 -->
+<div class="card" id="intro">
+  <h1>Hey… I Have Something to Ask 💖</h1>
+  <p>This isn’t random. This is from my heart.</p>
+  <button onclick="next(intro,list)">Open my heart 💌</button>
+</div>
+
+<!-- PAGE 2 -->
+<div class="card hidden" id="list">
+  <h1>One Small Challenge 😏</h1>
+  <p>Let’s see how good you are at stealing hearts.</p>
+  <button onclick="next(list,game); startGame()">Let’s play →</button>
+</div>
+
+<!-- GAME -->
+<div class="card hidden" id="game">
+  <h1>Pop the Hearts ❤️</h1>
+  <p>Pop <b>10 hearts</b>… try not to steal mine 😌</p>
+
+  <div id="game-area">
+    <canvas id="canvas"></canvas>
+    <div id="flirt"></div>
+  </div>
+
+  <p id="counter">Popped: 0 / 10</p>
+</div>
+
+<!-- FINAL -->
+<div class="card hidden" id="final">
+  <h1>Will You Be Mine? 💍</h1>
+  <p>I choose you — today and every day after.</p>
+</div>
+
+<div id="ring-overlay" class="hidden">
+  <div class="ring"></div>
+</div>
+
+<script>
+const intro=list=document.getElementById("list");
+const game=document.getElementById("game");
+const final=document.getElementById("final");
+const canvas=document.getElementById("canvas");
+const ctx=canvas.getContext("2d");
+const area=document.getElementById("game-area");
+const counter=document.getElementById("counter");
+const flirt=document.getElementById("flirt");
+const ring=document.getElementById("ring-overlay");
+
+const lines=[
+  "You look cute doing that 👀",
+  "Careful… you’re stealing my heart ❤️",
+  "Okay wow, you’re good at this 😌",
+  "Is it hot in here or is it just you?",
+  "Every tap, I fall a little more 💕",
+  "You’re dangerous… to my heart.",
+  "I hope you know I’m smiling right now 😊"
+];
+
+let hearts=[], popped=0, running=false, last=0;
+
+function next(a,b){a.classList.add("hidden");b.classList.remove("hidden");}
+
+function resize(){
+  const r=area.getBoundingClientRect();
+  canvas.width=r.width;
+  canvas.height=r.height;
+}
+
+class Heart{
+  constructor(){
+    this.s=28+Math.random()*10;
+    this.x=this.s+Math.random()*(canvas.width-this.s*2);
+    this.y=canvas.height+this.s;
+    this.v=-(1.2+Math.random());
+    this.a=true;
+  }
+  update(){this.y+=this.v;if(this.y<-80)this.a=false;}
+  draw(){
+    ctx.save();
+    ctx.translate(this.x,this.y);
+    ctx.scale(this.s/30,this.s/30);
+    ctx.beginPath();
+    ctx.moveTo(0,-10);
+    ctx.bezierCurveTo(-15,-30,-45,-5,0,30);
+    ctx.bezierCurveTo(45,-5,15,-30,0,-10);
+    ctx.fillStyle="#ff4f8b";
+    ctx.fill();
+    ctx.restore();
+  }
+}
+
+function showFlirt(){
+  flirt.textContent=lines[Math.floor(Math.random()*lines.length)];
+  flirt.style.opacity=1;
+  setTimeout(()=>flirt.style.opacity=0,1200);
+}
+
+function loop(t){
+  if(!running)return;
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  if(t-last>700){hearts.push(new Heart());last=t;}
+  hearts=hearts.filter(h=>h.a);
+  hearts.forEach(h=>{h.update();h.draw();});
+  requestAnimationFrame(loop);
+}
+
+canvas.onclick=e=>{
+  const r=canvas.getBoundingClientRect();
+  const x=e.clientX-r.left,y=e.clientY-r.top;
+  hearts.forEach(h=>{
+    if(h.a && Math.hypot(h.x-x,h.y-y)<h.s){
+      h.a=false;
+      popped++;
+      counter.textContent=`Popped: ${popped} / 10`;
+      showFlirt();
+      if(popped>=10){
+        running=false;
+        ring.classList.remove("hidden");
+        setTimeout(()=>{
+          ring.classList.add("hidden");
+          next(game,final);
+        },2200);
+      }
+    }
+  });
+};
+
+function startGame(){
+  resize();hearts=[];popped=0;running=true;last=performance.now();
+  counter.textContent="Popped: 0 / 10";
+  requestAnimationFrame(loop);
+}
+</script>
+
+</body>
+</html>
